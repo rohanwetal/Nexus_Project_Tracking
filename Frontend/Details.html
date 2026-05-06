@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Project Details</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .details-tabs {
+      display: flex; gap: 6px; margin-bottom: 28px;
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 12px; padding: 6px; box-shadow: var(--shadow-sm); flex-wrap: wrap;
+    }
+    .details-tab {
+      flex: 1; min-width: 100px; padding: 10px 18px; border-radius: 8px;
+      border: none; background: transparent; font-family: var(--font);
+      font-weight: 700; font-size: 13px; color: var(--muted); cursor: pointer;
+      transition: all .18s; white-space: nowrap;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .details-tab:hover  { background: #f0f4f8; color: var(--navy); }
+    .details-tab.active { background: var(--navy); color: #fff; }
+    .details-tab.active.ongoing   { background: #2563eb; }
+    .details-tab.active.delayed   { background: #dc2626; }
+    .details-tab.active.completed { background: #16a34a; }
+    .details-tab.active.noprog    { background: #64748b; }
+    .tab-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px; padding: 0 5px; border-radius: 20px;
+      font-size: 11px; font-weight: 800;
+      background: rgba(255,255,255,.25); color: inherit;
+    }
+    .details-tab:not(.active) .tab-count { background: var(--border); color: var(--muted); }
+
+    .detail-card {
+      background: #fff; border-radius: 14px; border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm); margin-bottom: 14px; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .detail-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .detail-card-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 22px; flex-wrap: wrap; border-bottom: 1px solid var(--border);
+    }
+    .detail-card-header.status-ongoing   { border-left: 4px solid #3b82f6; }
+    .detail-card-header.status-delayed   { border-left: 4px solid #ef4444; background: #fffafa; }
+    .detail-card-header.status-completed { border-left: 4px solid #16a34a; background: #f0fdf4; }
+    .detail-card-header.status-noprog    { border-left: 4px solid #94a3b8; background: #f8fafc; }
+    .detail-proj-name  { font-weight: 800; font-size: 15px; color: var(--navy); flex: 1; min-width: 0; }
+    .detail-proj-meta  { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .detail-dept-grid  { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 10px; padding: 16px 22px; }
+    .detail-dept-item  { display: flex; align-items: center; gap: 8px; background: #f7f9fc; border-radius: 8px; padding: 9px 12px; border: 1px solid var(--border); }
+    .detail-dept-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .detail-dept-info  { flex: 1; min-width: 0; }
+    .detail-dept-name  { font-size: 11px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .detail-dept-bar-wrap { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+    .detail-dept-bar-bg   { flex: 1; height: 5px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .detail-dept-bar-fill { height: 100%; border-radius: 4px; }
+    .detail-dept-pct   { font-size: 11px; font-weight: 800; color: var(--navy); width: 28px; text-align: right; }
+    .detail-card-footer { display: flex; align-items: center; gap: 10px; padding: 12px 22px; background: #f7f9fc; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .detail-overall    { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .detail-overall-bar-bg   { width: 90px; height: 7px; background: var(--border); border-radius: 6px; overflow: hidden; }
+    .detail-overall-bar-fill { height: 100%; border-radius: 6px; }
+    .detail-overall-pct { font-weight: 800; font-size: 14px; color: var(--navy); }
+    .detail-watchlist-row { padding: 10px 22px; background: #fff5f5; border-top: 1px dashed #fecaca; display: flex; align-items: flex-start; gap: 8px; }
+    .detail-watchlist-row .watch-label { font-size: 11px; font-weight: 800; color: #b91c1c; white-space: nowrap; padding-top: 1px; }
+    .detail-watchlist-items { display: flex; flex-wrap: wrap; gap: 6px; }
+    .detail-watch-chip { display: inline-flex; align-items: center; gap: 5px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 3px 9px; font-size: 11px; color: #7f1d1d; }
+    .detail-watch-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .section-summary { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-radius: 10px; margin-bottom: 18px; font-size: 13px; font-weight: 600; }
+    .section-summary.s-ongoing   { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .section-summary.s-delayed   { background: #fff1f2; border: 1px solid #fecaca; color: #b91c1c; }
+    .section-summary.s-completed { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+    .section-summary.s-noprog    { background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; }
+    .tab-section-title { font-weight: 800; font-size: 20px; color: var(--navy); margin-bottom: 6px; }
+    .tab-section-sub   { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+    .tab-empty { text-align: center; padding: 60px 40px; color: var(--muted); }
+    .tab-empty .icon { font-size: 48px; opacity: .3; display: block; margin-bottom: 14px; }
+    .kpi-mini-details {
+      display: block; margin-top: 6px; font-size: 10px; font-weight: 700;
+      color: var(--blue); text-decoration: none; opacity: .8; transition: opacity .15s; cursor: pointer;
+    }
+    .kpi-mini-details:hover { opacity: 1; text-decoration: underline; }
+  </style>
+</head>
+<body>
+<header class="header" id="siteHeader"></header>
+<div class="page-body">
+  <div class="page-container">
+    <div class="page-header-bar">
+      <div>
+        <div class="page-title">Project Details</div>
+        <div class="page-subtitle">Summary view — projects grouped by status</div>
+      </div>
+      <div class="header-actions">
+        <a href="home.html" style="text-decoration:none;">
+          <button class="btn-cancel btn-home">
+            <svg width="16" height="16" viewBox="0 0 64 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 18 C4 15 6 13 9 13 L22 13 L28 6 L55 6 C58 6 60 8 60 11 V48 C60 51 58 53 55 53 H9 C6 53 4 51 4 48 Z" fill="#fcc419"/>
+              <rect x="4" y="18" width="56" height="35" rx="4" fill="#ffd43b"/>
+              <rect x="4" y="14" width="30" height="8" rx="3" fill="#fcc419"/>
+              <polygon points="32,24 18,36 46,36" fill="#3d405b"/>
+              <rect x="20" y="36" width="24" height="16" rx="1" fill="#e9ecef"/>
+              <rect x="28" y="38" width="7" height="4" rx="1" fill="#845ef7"/>
+              <rect x="30" y="42" width="8" height="10" rx="1" fill="#7b4f2e"/>
+              <rect x="22" y="38" width="5" height="5" rx="1" fill="#3d405b"/>
+            </svg>
+            Home
+          </button>
+        </a>
+        <a href="Dashboard.html" style="text-decoration:none;">
+          <button class="btn-cancel">📊 Analytics</button>
+        </a>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip" id="kpiStrip" style="margin-bottom:24px;"></div>
+
+    <!-- Tabs -->
+    <div class="details-tabs">
+      <button class="details-tab active" id="tab-ongoing"   onclick="switchTab('ongoing')">🔵 Ongoing <span class="tab-count" id="cnt-ongoing">—</span></button>
+      <button class="details-tab"        id="tab-delayed"   onclick="switchTab('delayed')">🔴 Delayed <span class="tab-count" id="cnt-delayed">—</span></button>
+      <button class="details-tab"        id="tab-completed" onclick="switchTab('completed')">✅ Completed <span class="tab-count" id="cnt-completed">—</span></button>
+      <button class="details-tab"        id="tab-noprog"    onclick="switchTab('noprog')">⬜ No Progress <span class="tab-count" id="cnt-noprog">—</span></button>
+    </div>
+
+    <div id="tabContent"><p style="color:var(--muted);padding:48px;text-align:center;">Loading…</p></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="shared.js"></script>
+<script>
+  const session = requireAuth();
+  buildHeader(session);
+
+  // All data now comes from /api/kpi/details
+  let _allEnriched = [];
+  let _activeTab   = sessionStorage.getItem('detailsTab') || 'ongoing';
+
+  const focusTab = sessionStorage.getItem('detailsFocusTab');
+  if (focusTab) { _activeTab = focusTab; sessionStorage.removeItem('detailsFocusTab'); }
+
+  // ── Tab switching ─────────────────────────────────────────────────
+  function switchTab(tab) {
+    _activeTab = tab;
+    sessionStorage.setItem('detailsTab', tab);
+    document.querySelectorAll('.details-tab').forEach(b =>
+      b.classList.remove('active', 'ongoing', 'delayed', 'completed', 'noprog')
+    );
+    document.getElementById('tab-' + tab).classList.add('active', tab);
+    renderTabContent(tab);
+  }
+
+  // ── KPI strip ─────────────────────────────────────────────────────
+  function renderKPIStrip(summary) {
+    document.getElementById('kpiStrip').innerHTML = [
+      { cls: 'total',     num: summary.total,     lbl: 'Total',       tab: 'ongoing'   },
+      { cls: 'ongoing',   num: summary.ongoing,   lbl: 'Ongoing',     tab: 'ongoing'   },
+      { cls: 'completed', num: summary.completed, lbl: 'Completed',   tab: 'completed' },
+      { cls: 'delayed',   num: summary.delayed,   lbl: 'Delayed',     tab: 'delayed'   },
+      { cls: 'noprog',    num: summary.noprog,    lbl: 'No Progress', tab: 'noprog'    },
+    ].map(k => `
+      <div class="kpi-mini ${k.cls}" style="cursor:pointer;" onclick="switchTab('${k.tab}')">
+        <div class="kpi-mini-num">${k.num}</div>
+        <div class="kpi-mini-label">${k.lbl}</div>
+      </div>`).join('');
+  }
+
+  // ── Render single project card ─────────────────────────────────────
+  function renderCard(p) {
+    const statusCls  = 'status-' + p.status;
+    const barColor   = p.status === 'completed' ? '#16a34a'
+                     : p.status === 'delayed'   ? '#ef4444'
+                     : p.status === 'noprog'    ? '#94a3b8' : '#3b82f6';
+    const prioBg     = p.priority === 'High'   ? '#fee2e2'
+                     : p.priority === 'Medium' ? '#fef3c7'
+                     : p.priority === 'Low'    ? '#dcfce7' : '#f1f5f9';
+    const prioClr    = p.priority === 'High'   ? '#b91c1c'
+                     : p.priority === 'Medium' ? '#92400e'
+                     : p.priority === 'Low'    ? '#15803d' : '#64748b';
+    const prioBadge  = p.priority
+      ? `<span style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${prioBg};color:${prioClr};">${p.priority}</span>`
+      : '';
+    const pmoBadge   = p.pmo === 'Yes' ? `<span class="pmo-badge" style="font-size:11px;">PMO</span>` : '';
+    const statusLabel = p.status === 'completed' ? '✅ Completed'
+                      : p.status === 'delayed'   ? '⚠️ Delayed'
+                      : p.status === 'noprog'    ? '⬜ No Progress' : '🔵 Ongoing';
+    const sCls = `s-${p.status}`;
+
+    // Department grid — only this project's depts
+    const filteredCOE = (p.departments && p.departments.length)
+      ? COE_LIST.filter(c => p.departments.some(d => d.toLowerCase() === c.label.toLowerCase()))
+      : COE_LIST;
+
+    const deptItems = filteredCOE.map(c => {
+      const val = parseInt((p.coe || {})[c.key]) || 0;
+      const fc  = val === 0 ? '#94a3b8' : val < 30 ? '#ef4444' : val < 70 ? '#f59e0b' : '#22c55e';
+      return `<div class="detail-dept-item">
+        <span class="detail-dept-dot" style="background:${c.color}"></span>
+        <div class="detail-dept-info">
+          <div class="detail-dept-name">${c.short}</div>
+          <div class="detail-dept-bar-wrap">
+            <div class="detail-dept-bar-bg"><div class="detail-dept-bar-fill" style="width:${val}%;background:${fc}"></div></div>
+            <span class="detail-dept-pct">${val}%</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Watchlist notes
+    let watchHtml = '';
+    if (p.hasWatch && p.coeNotes) {
+      const chips = COE_LIST
+        .filter(c => (p.coeNotes[c.key] || '').trim())
+        .map(c => `<span class="detail-watch-chip">
+          <span class="detail-watch-chip-dot" style="background:${c.color}"></span>
+          <strong>${c.short}:</strong>&nbsp;${p.coeNotes[c.key]}
+        </span>`).join('');
+      if (chips) {
+        watchHtml = `<div class="detail-watchlist-row">
+          <span class="watch-label">🚨 Watch</span>
+          <div class="detail-watchlist-items">${chips}</div>
+        </div>`;
+      }
+    }
+
+    return `<div class="detail-card">
+      <div class="detail-card-header ${statusCls}">
+        <div style="flex:1;min-width:0;">
+          <div class="detail-proj-name">${p.name}</div>
+          <div class="detail-proj-meta">
+            <span>Lead: <strong>${p.lead}</strong></span>
+            <span>Dept: <strong>${(p.departments || []).join(', ') || '—'}</strong></span>
+            <span>${p.start} – ${p.end}</span>
+          </div>
+        </div>
+        ${prioBadge}${pmoBadge}
+        <span class="status-pill ${sCls}">${statusLabel}</span>
+      </div>
+      <div class="detail-dept-grid">${deptItems}</div>
+      ${watchHtml}
+      <div class="detail-card-footer">
+        <button class="btn-func" onclick="goFunctional('${p.id}')">✏️ Update Status</button>
+        <div class="detail-overall">
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">Overall</span>
+          <div class="detail-overall-bar-bg">
+            <div class="detail-overall-bar-fill" style="width:${p.pct}%;background:${barColor}"></div>
+          </div>
+          <span class="detail-overall-pct">${p.pct}%</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Render tab content ─────────────────────────────────────────────
+  function renderTabContent(tab) {
+    const container = document.getElementById('tabContent');
+    const items     = _allEnriched.filter(p => p.status === tab);
+
+    const cfg = {
+      ongoing:   { title: 'Ongoing Projects',     sub: 'Currently in progress — tracking toward completion.', icon: '🔵', cls: 's-ongoing'   },
+      delayed:   { title: 'Delayed Projects',     sub: 'Past end date without reaching 100% — needs attention.', icon: '🔴', cls: 's-delayed'   },
+      completed: { title: 'Completed Projects',   sub: 'Successfully delivered at 100% completion.',             icon: '✅', cls: 's-completed' },
+      noprog:    { title: 'No Progress Projects', sub: 'Not started yet — 0% completion recorded.',              icon: '⬜', cls: 's-noprog'    },
+    }[tab];
+
+    if (!items.length) {
+      container.innerHTML = `<div class="tab-empty"><span class="icon">${cfg.icon}</span><p>No ${cfg.title.toLowerCase()} found.</p></div>`;
+      return;
+    }
+
+    const sorted = [...items].sort((a, b) => a.pct - b.pct);
+
+    container.innerHTML = `
+      <div class="tab-section-title">${cfg.icon} ${cfg.title}</div>
+      <div class="tab-section-sub">${cfg.sub}</div>
+      <div class="section-summary ${cfg.cls}">
+        <span>${items.length} project${items.length !== 1 ? 's' : ''} in this category</span>
+        ${tab === 'delayed' ? '<span>⚡ Sorted by completion % — lowest first</span>' : ''}
+      </div>
+      ${sorted.map(renderCard).join('')}`;
+  }
+
+  function goFunctional(pid) {
+    sessionStorage.setItem('funcProjectId', pid);
+    window.location.href = 'functional.html';
+  }
+
+  // ── Init — single parallel fetch ──────────────────────────────────
+  async function init() {
+    const [summary, details] = await Promise.all([
+      fetchKPISummary(),
+      fetchKPIDetails(),        // all projects enriched
+    ]);
+
+    _allEnriched = details;
+
+    // Update tab counts
+    document.getElementById('cnt-ongoing').textContent   = summary.ongoing;
+    document.getElementById('cnt-delayed').textContent   = summary.delayed;
+    document.getElementById('cnt-completed').textContent = summary.completed;
+    document.getElementById('cnt-noprog').textContent    = summary.noprog;
+
+    renderKPIStrip(summary);
+    switchTab(_activeTab);
+  }
+
+  init();
+</script>
+</body>
+</html>

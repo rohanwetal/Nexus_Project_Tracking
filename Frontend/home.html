@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Year picker ── */
+    .year-picker-wrap { position:relative;display:inline-block; }
+    .year-picker-btn { display:inline-flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--border);color:var(--navy);padding:10px 18px;border-radius:10px;font-family:var(--font);font-weight:700;font-size:15px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-sm);min-width:160px;justify-content:space-between; }
+    .year-picker-btn:hover,.year-picker-btn.open { border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 3px rgba(27,110,168,.1); }
+    .ypb-caret { font-size:11px;opacity:.6;transition:transform .2s; }
+    .year-picker-btn.open .ypb-caret { transform:rotate(180deg); }
+    .year-picker-dropdown { display:none;position:absolute;top:calc(100% + 8px);left:0;width:280px;background:#fff;border:1.5px solid var(--border);border-radius:14px;box-shadow:0 12px 40px rgba(31,46,96,.18);z-index:3000;overflow:hidden; }
+    .year-picker-dropdown.open { display:block; }
+    .ypd-header { background:var(--gradient);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;color:#fff; }
+    .ypd-header-title { font-weight:700;font-size:14px;letter-spacing:.5px; }
+    .ypd-nav-row { display:flex;align-items:center;gap:8px; }
+    .ypd-nav-btn { background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;line-height:1; }
+    .ypd-nav-btn:hover { background:rgba(255,255,255,.32); }
+    .ypd-decade-label { font-weight:700;font-size:13px; }
+    .ypd-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:14px; }
+    .ypd-year-cell { padding:10px 6px;border:1.5px solid var(--border);border-radius:8px;background:#f7f9fc;font-family:var(--font);font-size:13px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;transition:all .15s; }
+    .ypd-year-cell:hover { background:var(--blue);color:#fff;border-color:var(--blue); }
+    .ypd-year-cell.selected { background:var(--navy);color:#fff;border-color:var(--navy);font-weight:800; }
+    .ypd-year-cell.has-projects { border-color:#93c5fd;background:#eff6ff;color:var(--navy); }
+    .ypd-year-cell.has-projects:hover,.ypd-year-cell.has-projects.selected { background:var(--navy);color:#fff;border-color:var(--navy); }
+    .ypd-year-cell.out-of-range { opacity:.35;cursor:default;pointer-events:none; }
+    .ypd-footer { padding:10px 14px;border-top:1px solid var(--border);background:#f7f9fc;display:flex;align-items:center;justify-content:space-between;gap:8px; }
+    .ypd-legend { font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px; }
+    .ypd-legend-dot { width:8px;height:8px;border-radius:2px;background:#93c5fd;border:1.5px solid #3b82f6;flex-shrink:0; }
+    .ypd-today-btn { background:none;border:1.5px solid var(--border);color:var(--blue);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s; }
+    .ypd-today-btn:hover { background:var(--blue);color:#fff;border-color:var(--blue); }
+    .year-label-display { font-family:var(--font);font-weight:800;font-size:22px;color:var(--navy);margin-left:4px; }
+    .year-section-row { display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap; }
+
+    /* ── Orange delayed button ── */
+    .btn-func-delayed {
+      display:inline-flex;align-items:center;gap:6px;
+      background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;
+      border:none;padding:8px 14px;border-radius:7px;font-size:13px;font-weight:700;
+      cursor:pointer;transition:opacity .2s;box-shadow:0 2px 8px rgba(249,115,22,.35);
+    }
+    .btn-func-delayed:hover { opacity:.88; }
+
+    /* ── Dept progress tooltip ── */
+    .dept-progress-tooltip {
+      position:fixed;z-index:9100;width:220px;background:#fff;
+      border:1.5px solid var(--border);border-radius:12px;
+      box-shadow:0 10px 36px rgba(31,46,96,.18);pointer-events:none;
+      opacity:0;transform:translateY(4px) scale(.97);
+      transition:opacity .15s,transform .15s;overflow:hidden;
+    }
+    .dept-progress-tooltip.visible { opacity:1;transform:translateY(0) scale(1); }
+    .dpt-header { background:var(--gradient);color:#fff;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:8px 13px; }
+    .dpt-row    { display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid #f0f4f8; }
+    .dpt-row:last-child { border-bottom:none; }
+    .dpt-dot    { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+    .dpt-label  { font-size:11px;font-weight:700;color:var(--navy);width:36px;flex-shrink:0; }
+    .dpt-bar-bg { flex:1;height:5px;background:var(--border);border-radius:4px;overflow:hidden; }
+    .dpt-bar-fill { height:100%;border-radius:4px; }
+    .dpt-pct    { font-size:11px;font-weight:800;width:30px;text-align:right;flex-shrink:0; }
+
+    /* ── KPI details link ── */
+    .kpi-mini-details { display:block;margin-top:6px;font-size:10px;font-weight:700;color:var(--blue);text-decoration:none;opacity:.8;transition:opacity .15s; }
+    .kpi-mini-details:hover { opacity:1;text-decoration:underline; }
+  </style>
+</head>
+<body>
+<header class="header" id="siteHeader"></header>
+<div class="page-body">
+  <div class="page-container">
+
+    <div class="page-header-bar">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Select a year to view projects active during that period</div>
+      </div>
+      <div class="header-actions">
+        <a href="Dashboard.html" style="text-decoration:none;">
+          <button class="btn-add btn-analytics">
+            <svg width="17" height="17" viewBox="0 0 64 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2"  y="38" width="10" height="20" rx="2" fill="#ff6b6b"/>
+              <rect x="16" y="28" width="10" height="30" rx="2" fill="#ffa94d"/>
+              <rect x="30" y="16" width="10" height="42" rx="2" fill="#ffd43b"/>
+              <rect x="44" y="22" width="10" height="36" rx="2" fill="#51cf66"/>
+              <rect x="52" y="4"  width="10" height="54" rx="2" fill="#4dabf7"/>
+              <circle cx="7"  cy="33" r="4" fill="#ff6b6b"/>
+              <circle cx="21" cy="23" r="4" fill="#ffa94d"/>
+              <circle cx="35" cy="11" r="4" fill="#ffd43b"/>
+              <circle cx="49" cy="17" r="4" fill="#51cf66"/>
+              <circle cx="57" cy="0"  r="4" fill="#4dabf7"/>
+            </svg>
+            Analytics
+          </button>
+        </a>
+        <a href="projects.html" style="text-decoration:none;">
+          <button class="btn-cancel btn-projects">All Projects</button>
+        </a>
+        <button class="btn-add" id="addProjectBtn" onclick="tryOpenAddModal()">＋ Add Project</button>
+        <div id="addProjectLocked" style="display:none;">
+          <button class="btn-cancel" style="cursor:default;opacity:.55;" disabled>🔒 Add Project</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Strip — fetched from /api/kpi/summary -->
+    <div class="kpi-strip" id="kpiStrip" style="min-height:80px;"></div>
+
+    <!-- Year Picker -->
+    <div class="year-section-row">
+      <div class="year-picker-wrap" id="yearPickerWrap">
+        <button class="year-picker-btn" id="yearPickerBtn" onclick="toggleYearPicker()">
+          <span>📅</span>
+          <span id="yearPickerLabel">Select Year</span>
+          <span class="ypb-caret">▼</span>
+        </button>
+        <div class="year-picker-dropdown" id="yearPickerDropdown">
+          <div class="ypd-header">
+            <span class="ypd-header-title">Select Year</span>
+            <div class="ypd-nav-row">
+              <button class="ypd-nav-btn" onclick="changeDecade(-1)">‹</button>
+              <span class="ypd-decade-label" id="decadeLabel"></span>
+              <button class="ypd-nav-btn" onclick="changeDecade(+1)">›</button>
+            </div>
+          </div>
+          <div class="ypd-grid" id="yearGrid"></div>
+          <div class="ypd-footer">
+            <div class="ypd-legend"><div class="ypd-legend-dot"></div>Has projects</div>
+            <button class="ypd-today-btn" onclick="jumpToCurrentYear()">Current Year</button>
+          </div>
+        </div>
+      </div>
+      <span class="year-label-display" id="yearLabelDisplay"></span>
+    </div>
+
+    <div id="projectsPanel">
+      <div class="empty-state">
+        <span class="icon">📂</span>
+        <p>Select a year above to load projects for that period.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROJECT MODAL -->
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal modal-wide">
+    <h3 id="addModalTitle">Add New Project</h3>
+    <div class="modal-section-label">Basic Details</div>
+    <div class="modal-grid">
+      <div class="form-group" style="grid-column:1/-1;"><label>Project Name</label><input type="text" id="m_name" placeholder="e.g. Hydraulic Upgrade Phase 2"></div>
+      <div class="form-group"><label>COE Lead</label>
+        <select id="m_lead">
+          <option value="">— Select COE Lead —</option>
+          <option>Jayakumar Selvaraj</option><option>Sanjoy Mitra</option>
+          <option>Sivasankar K</option><option>Subhadip Kayal</option>
+          <option>Vijayakumar Mani</option><option>Vishwambhar Singh</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Priority</label>
+        <select id="m_priority"><option value="">Select Priority</option><option value="High">🔴 High</option><option value="Medium">🟡 Medium</option><option value="Low">🟢 Low</option></select>
+      </div>
+      <div class="form-group"><label>Start Date</label>
+        <div class="mypicker-wrap" id="wrap_m_start"><input type="text" id="m_start" placeholder="Select month & year" readonly class="mypicker-input" onclick="openPicker('m_start')"><span class="mypicker-icon">📅</span><div class="mypicker-popup" id="pop_m_start"></div></div>
+      </div>
+      <div class="form-group"><label>End Date</label>
+        <div class="mypicker-wrap" id="wrap_m_end"><input type="text" id="m_end" placeholder="Select month & year" readonly class="mypicker-input" onclick="openPicker('m_end')"><span class="mypicker-icon">📅</span><div class="mypicker-popup" id="pop_m_end"></div></div>
+      </div>
+      <div class="form-group"><label>PMO Driven</label>
+        <select id="m_pmo"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+      </div>
+    </div>
+    <div class="modal-section-label">Department(s)</div>
+    <div class="dept-count-row">
+      <button class="dept-count-btn active" onclick="setDeptCount(1,this)">1 Dept</button>
+      <button class="dept-count-btn" onclick="setDeptCount(2,this)">2 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(3,this)">3 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(4,this)">4 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(5,this)">5 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(6,this)">All Depts</button>
+    </div>
+    <div class="dept-selects" id="deptSelects"></div>
+    <div class="modal-actions" style="margin-top:24px;">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-primary-full" onclick="addProject()" style="margin-top:0;padding:12px;">Add Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Watchlist hover popup -->
+<div class="watch-popup" id="globalWatchPopup">
+  <div class="watch-popup-header">🚨 Critical Watchlist<div class="watch-popup-proj" id="wprojName"></div></div>
+  <div id="wpopBody"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="shared.js"></script>
+<script>
+  const session = requireAuth();
+  buildHeader(session);
+
+  let selectedYear    = null;
+  let _decadeStart    = Math.floor(new Date().getFullYear() / 10) * 10;
+  let _yearPickerOpen = false;
+  let _allProjectYears = new Set();
+  let popupLeaveTimer = null;
+
+  function parseYear(s) {
+    if (!s) return null;
+    const ap = s.match(/'(\d{2})$/);      if (ap) return 2000 + parseInt(ap[1]);
+    const f4 = s.match(/\b(20\d{2})\b/); if (f4) return parseInt(f4[1]);
+    return null;
+  }
+
+  // ── Year Picker ────────────────────────────────────────────────────
+  function toggleYearPicker() {
+    _yearPickerOpen = !_yearPickerOpen;
+    document.getElementById('yearPickerDropdown').classList.toggle('open', _yearPickerOpen);
+    document.getElementById('yearPickerBtn').classList.toggle('open', _yearPickerOpen);
+    if (_yearPickerOpen) renderYearGrid();
+  }
+  function closeYearPicker() {
+    _yearPickerOpen = false;
+    document.getElementById('yearPickerDropdown').classList.remove('open');
+    document.getElementById('yearPickerBtn').classList.remove('open');
+  }
+  function changeDecade(dir) { _decadeStart += dir * 10; renderYearGrid(); }
+  function jumpToCurrentYear() {
+    const y = new Date().getFullYear();
+    _decadeStart = Math.floor(y / 10) * 10;
+    renderYearGrid(); selectYear(y); closeYearPicker();
+  }
+  function renderYearGrid() {
+    const grid = document.getElementById('yearGrid');
+    document.getElementById('decadeLabel').textContent = `${_decadeStart}–${_decadeStart + 9}`;
+    grid.innerHTML = '';
+    for (let y = _decadeStart; y < _decadeStart + 12; y++) {
+      const cell = document.createElement('button');
+      cell.textContent = y; cell.className = 'ypd-year-cell';
+      if (_allProjectYears.has(y)) cell.classList.add('has-projects');
+      if (y === selectedYear) cell.classList.add('selected');
+      if (y < 2000 || y > 2099) cell.classList.add('out-of-range');
+      else cell.onclick = () => { selectYear(y); closeYearPicker(); };
+      grid.appendChild(cell);
+    }
+  }
+
+  // ── KPI Strip — /api/kpi/summary ──────────────────────────────────
+  async function renderKPI() {
+    const summary = await fetchKPISummary();
+    document.getElementById('kpiStrip').innerHTML = [
+      { cls: 'total',     num: summary.total,     lbl: 'Total Projects', tab: 'ongoing'   },
+      { cls: 'ongoing',   num: summary.ongoing,   lbl: 'Ongoing',        tab: 'ongoing'   },
+      { cls: 'completed', num: summary.completed, lbl: 'Completed',      tab: 'completed' },
+      { cls: 'delayed',   num: summary.delayed,   lbl: 'Delayed',        tab: 'delayed'   },
+      { cls: 'noprog',    num: summary.noprog,    lbl: 'No Progress',    tab: 'noprog'    },
+    ].map(k => `
+      <div class="kpi-mini ${k.cls}" style="cursor:default;">
+        <div class="kpi-mini-num">${k.num}</div>
+        <div class="kpi-mini-label">${k.lbl}</div>
+        <a href="Details.html" class="kpi-mini-details"
+           onclick="sessionStorage.setItem('detailsFocusTab','${k.tab}')">Details →</a>
+      </div>`).join('');
+  }
+
+  // ── Watchlist popup ───────────────────────────────────────────────
+  async function showWatchPopup(pid, anchorEl) {
+    const pName = anchorEl.closest('.project-card')?.querySelector('.project-name')?.textContent || pid;
+    document.getElementById('wprojName').textContent = pName;
+    document.getElementById('wpopBody').innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">Loading…</div>';
+    const popup = document.getElementById('globalWatchPopup');
+    popup.classList.add('visible');
+    _positionWatchPopup(anchorEl, popup);
+
+    try {
+      const res = await fetch(`${API_BASE}/updates/${pid}`);
+      const upd = res.ok ? await res.json() : {};
+      document.getElementById('wpopBody').innerHTML = COE_LIST.map(c => {
+        const note = (upd.coeNotes?.[c.key] || '').trim();
+        return `<div class="watch-dept-row">
+          <span class="watch-dept-dot" style="background:${c.color}"></span>
+          <div style="flex:1;">
+            <div class="watch-dept-name">${c.label}</div>
+            ${note
+              ? `<div class="watch-dept-note">${note}</div>`
+              : `<div class="watch-dept-empty">No critical note</div>`}
+          </div>
+        </div>`;
+      }).join('');
+      _positionWatchPopup(anchorEl, popup);
+    } catch(e) { /* silent */ }
+  }
+  function _positionWatchPopup(anchorEl, popup) {
+    const rect = anchorEl.getBoundingClientRect();
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+    let left = rect.right + 10, top = rect.top;
+    if (left + 280 > vpW - 10) left = rect.left - 290;
+    left = Math.max(8, Math.min(left, vpW - 288));
+    if (top + popup.offsetHeight > vpH - 10) top = vpH - popup.offsetHeight - 10;
+    top = Math.max(10, top);
+    popup.style.left = left + 'px'; popup.style.top = top + 'px';
+  }
+  function scheduleHide() { popupLeaveTimer = setTimeout(hideWatchPopup, 200); }
+  function cancelHide()   { clearTimeout(popupLeaveTimer); }
+  function hideWatchPopup() { document.getElementById('globalWatchPopup').classList.remove('visible'); }
+  document.getElementById('globalWatchPopup').addEventListener('mouseenter', cancelHide);
+  document.getElementById('globalWatchPopup').addEventListener('mouseleave', scheduleHide);
+
+  // ── Build year set from all projects ─────────────────────────────
+  async function buildProjectYearSet() {
+    const projects = await fetchProjects();
+    _allProjectYears = new Set();
+    projects.forEach(p => {
+      const sy = parseYear(p.start), ey = parseYear(p.end);
+      if (sy && ey) for (let y = sy; y <= ey; y++) _allProjectYears.add(y);
+    });
+  }
+
+  async function selectYear(y) {
+    selectedYear = y;
+    document.getElementById('yearPickerLabel').textContent  = y;
+    document.getElementById('yearLabelDisplay').textContent = `Projects in ${y}`;
+    renderYearGrid();
+    await renderProjects(y);
+  }
+
+  // ── Project cards — uses /api/kpi/details for enriched data ──────
+  async function renderProjects(year) {
+    const panel = document.getElementById('projectsPanel');
+    panel.innerHTML = '<p style="color:var(--muted);padding:40px;text-align:center;">Loading…</p>';
+
+    // Get all enriched projects from backend then filter by year locally
+    const [allProjects, allEnriched] = await Promise.all([
+      fetchProjects(),
+      fetchKPIDetails(),
+    ]);
+
+    // Build a map from id → enriched data
+    const enrichedMap = {};
+    allEnriched.forEach(e => { enrichedMap[e.id] = e; });
+
+    const filtered = allProjects.filter(p => projectInYear(p, year));
+
+    if (!filtered.length) {
+      panel.innerHTML = `<div class="empty-state"><span class="icon">📭</span><p>No projects for <strong>${year}</strong>.</p></div>`;
+      return;
+    }
+
+    panel.innerHTML = '';
+    filtered.forEach(p => {
+      const id        = String(p._id || p.id);
+      const e         = enrichedMap[id] || {};
+      const pct       = e.pct   ?? 0;
+      const status    = e.status ?? 'noprog';
+      const coeData   = e.coe   ?? {};
+      const depts     = p.departments || [];
+      const isDelayed = status === 'delayed';
+      const hasWatch  = e.hasWatch ?? false;
+
+      const barColor = status === 'completed' ? 'linear-gradient(90deg,#16a34a,#4ade80)'
+                     : status === 'delayed'   ? 'linear-gradient(90deg,#ef4444,#f97316)'
+                     : status === 'noprog'    ? 'linear-gradient(90deg,#94a3b8,#cbd5e1)'
+                     :                          'linear-gradient(90deg,var(--blue),#22d3a5)';
+
+      const updateBtn = isDelayed
+        ? `<button class="btn-func-delayed" onclick="goFunctional('${id}')">⚠️ Update Status</button>`
+        : `<button class="btn-func" onclick="goFunctional('${id}')">✏️ Update Status</button>`;
+
+      const coeJson  = JSON.stringify(coeData).replace(/"/g, '&quot;');
+      const deptsJson = JSON.stringify(depts).replace(/"/g, '&quot;');
+
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      if (isDelayed) card.style.borderLeft = '3px solid #ef4444';
+
+      card.innerHTML = `
+        <div class="project-info">
+          <div class="project-name">${p.name}</div>
+          <div class="project-meta">
+            <span>Lead: <strong>${p.lead}</strong></span>
+            <span>Dept: <strong>${depts.join(', ') || '—'}</strong></span>
+          </div>
+        </div>
+        <span class="project-dates">${p.start} – ${p.end}</span>
+        <span class="priority-badge ${(p.priority || '').toLowerCase()}">${p.priority || ''}</span>
+        ${p.pmo === 'Yes' ? `<span class="pmo-badge">PMO</span>` : ''}
+        <div class="progress-wrap"
+             onmouseenter="showDeptTooltip(event,${coeJson},${deptsJson})"
+             onmousemove="_positionDeptTooltip(event,document.getElementById('deptProgressTooltip'))"
+             onmouseleave="hideDeptTooltip()"
+             style="cursor:pointer;">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" style="background:${barColor};width:${pct}%"></div>
+          </div>
+          <span class="progress-pct">${pct}%</span>
+        </div>
+        ${hasWatch
+          ? `<button class="btn-watch-flag"
+               onmouseenter="showWatchPopup('${id}',this)"
+               onmouseleave="scheduleHide()">🚨 Watchlist</button>`
+          : ''}
+        ${updateBtn}`;
+
+      panel.appendChild(card);
+    });
+  }
+
+  // ── Add project ────────────────────────────────────────────────────
+  function openAddModal() {
+    resetDeptSelector(); resetPicker('m_start'); resetPicker('m_end');
+    if (selectedYear) {
+      _pickerState['m_start'] = { year: selectedYear };
+      _pickerState['m_end']   = { year: selectedYear };
+    }
+    document.getElementById('addModalOverlay').classList.add('open');
+  }
+  function closeAddModal() {
+    document.getElementById('addModalOverlay').classList.remove('open');
+    document.getElementById('m_name').value = '';
+    ['m_lead','m_priority','m_pmo'].forEach(id => document.getElementById(id).value = '');
+    resetPicker('m_start'); resetPicker('m_end'); resetDeptSelector();
+  }
+  async function addProject() {
+    const name     = document.getElementById('m_name').value.trim();
+    const lead     = document.getElementById('m_lead').value.trim();
+    const priority = document.getElementById('m_priority').value;
+    const pmo      = document.getElementById('m_pmo').value;
+    const start    = document.getElementById('m_start').value.trim();
+    const end      = document.getElementById('m_end').value.trim();
+    const depts    = getSelectedDepts();
+    if (!name || !lead || !start || !end) { showToast('Please fill all required fields', 'error'); return; }
+    if (_currentDeptCount < DEPT_OPTIONS.length && depts.length < _currentDeptCount) { showToast('Please select all department(s)', 'error'); return; }
+    try {
+      const res = await fetch(`${API_BASE}/projects`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, lead, priority: priority || 'Medium', pmo: pmo || 'No', start, end, departments: depts }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add project');
+      closeAddModal();
+      showToast(`Project "${name}" added!`, 'success');
+      await Promise.all([renderKPI(), buildProjectYearSet()]);
+      if (selectedYear) await renderProjects(selectedYear);
+    } catch (err) {
+      showToast(err.message || 'Error adding project', 'error');
+    }
+  }
+
+  function tryOpenAddModal() {
+    if (!canAddProject(session)) { showToast('You do not have permission to add projects.', 'error'); return; }
+    openAddModal();
+  }
+  function goFunctional(pid) { sessionStorage.setItem('funcProjectId', pid); window.location.href = 'functional.html'; }
+
+  function initPermissionUI() {
+    const add    = canAddProject(session);
+    document.getElementById('addProjectBtn').style.display    = add ? 'inline-flex' : 'none';
+    document.getElementById('addProjectLocked').style.display = add ? 'none' : 'inline-flex';
+  }
+
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('yearPickerWrap');
+    if (_yearPickerOpen && wrap && !wrap.contains(e.target)) closeYearPicker();
+  });
+
+  initPickerOutsideClose(); renderDeptSelects(1); initPermissionUI();
+
+  (async function init() {
+    await Promise.all([renderKPI(), buildProjectYearSet()]);
+    const returnYear = parseInt(sessionStorage.getItem('homeSelectedYear')) || new Date().getFullYear();
+    sessionStorage.removeItem('homeSelectedYear');
+    await selectYear(returnYear);
+  })();
+</script>
+</body>
+</html>

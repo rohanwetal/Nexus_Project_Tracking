@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Project Registry</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="header" id="siteHeader"></header>
+<div class="page-body">
+  <div class="page-container">
+    <div class="page-header-bar">
+      <div><div class="page-title">Project Registry</div><div class="page-subtitle">View and manage all engineering projects</div></div>
+      <div class="header-actions">
+        <a href="home.html" style="text-decoration:none;">
+  <button class="btn-cancel btn-home">
+  <svg width="16" height="16" viewBox="0 0 64 56" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+    <path d="M4 18 C4 15 6 13 9 13 L22 13 L28 6 L55 6 C58 6 60 8 60 11 V48 C60 51 58 53 55 53 H9 C6 53 4 51 4 48 Z" fill="#fcc419"/>
+    <rect x="4" y="18" width="56" height="35" rx="4" fill="#ffd43b"/>
+    <rect x="4" y="14" width="30" height="8" rx="3" fill="#fcc419"/>
+    <polygon points="32,24 18,36 46,36" fill="#3d405b"/>
+    <rect x="20" y="36" width="24" height="16" rx="1" fill="#e9ecef"/>
+    <rect x="28" y="38" width="7" height="4" rx="1" fill="#845ef7"/>
+    <rect x="30" y="42" width="8" height="10" rx="1" fill="#7b4f2e"/>
+    <rect x="22" y="38" width="5" height="5" rx="1" fill="#3d405b"/>
+  </svg>
+  Home
+</button>
+</a>
+        <button class="btn-add" id="addProjectBtn" onclick="tryOpenAddModal()" style="display:none;">＋ Add Project</button>
+        <div id="addProjectLocked" style="display:none;"><button class="btn-cancel" style="cursor:default;opacity:.55;" disabled>🔒 Add Project</button></div>
+      </div>
+    </div>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Project Name</th><th>Lead</th><th>Department(s)</th><th>Priority</th><th>PMO</th><th>Start</th><th>End</th><th>Completion</th></tr></thead>
+        <tbody id="projectTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROJECT MODAL -->
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal modal-wide">
+    <h3>Add New Project</h3>
+    <div class="modal-section-label">Basic Details</div>
+    <div class="modal-grid">
+      <div class="form-group" style="grid-column:1/-1;"><label>Project Name</label><input type="text" id="m_name" placeholder="e.g. Hydraulic Upgrade Phase 2"></div>
+      <div class="form-group"><label>COE Lead</label>
+        <select id="m_lead">
+          <option value="">— Select COE Lead —</option>
+          <option value="Jayakumar Selvaraj">Jayakumar Selvaraj</option>
+          <option value="Sanjoy Mitra">Sanjoy Mitra</option>
+          <option value="Sivasankar K">Sivasankar K</option>
+          <option value="Subhadip Kayal">Subhadip Kayal</option>
+          <option value="Vijayakumar Mani">Vijayakumar Mani</option>
+          <option value="Vishwambhar Singh">Vishwambhar Singh</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Priority</label>
+        <select id="m_priority"><option value="">Select Priority</option><option value="High">🔴 High</option><option value="Medium">🟡 Medium</option><option value="Low">🟢 Low</option></select>
+      </div>
+      <div class="form-group"><label>Start Date</label>
+        <div class="mypicker-wrap" id="wrap_m_start"><input type="text" id="m_start" placeholder="Select month & year" readonly class="mypicker-input" onclick="openPicker('m_start')"><span class="mypicker-icon">📅</span><div class="mypicker-popup" id="pop_m_start"></div></div>
+      </div>
+      <div class="form-group"><label>End Date</label>
+        <div class="mypicker-wrap" id="wrap_m_end"><input type="text" id="m_end" placeholder="Select month & year" readonly class="mypicker-input" onclick="openPicker('m_end')"><span class="mypicker-icon">📅</span><div class="mypicker-popup" id="pop_m_end"></div></div>
+      </div>
+      <div class="form-group"><label>PMO Driven</label>
+        <select id="m_pmo"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+      </div>
+    </div>
+    <div class="modal-section-label">Department(s)</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">How many departments does this project involve?</p>
+    <div class="dept-count-row">
+      <button class="dept-count-btn active" onclick="setDeptCount(1,this)">1 Dept</button>
+      <button class="dept-count-btn" onclick="setDeptCount(2,this)">2 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(3,this)">3 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(4,this)">4 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(5,this)">5 Depts</button>
+      <button class="dept-count-btn" onclick="setDeptCount(6,this)">All Depts</button>
+    </div>
+    <div class="dept-selects" id="deptSelects"></div>
+    <div class="modal-actions" style="margin-top:24px;">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-primary-full" onclick="addProjectFromRegistry()" style="margin-top:0;padding:12px;">Add Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="delModalOverlay">
+  <div class="modal">
+    <h3 style="color:var(--danger);">🗑 Delete Project?</h3>
+    <p id="delProjectName" class="del-proj-name"></p>
+    <div class="del-warning">This will permanently remove the project and all its status updates. <strong>Cannot be undone.</strong></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeDelModal()">Cancel</button><button class="btn-danger" onclick="confirmDelete()">Yes, Delete</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="shared.js"></script>
+<script>
+  const session = requireAuth();
+  buildHeader(session);
+  let pendingDeleteId = null;
+
+  async function renderTable() {
+    const projects = await fetchProjects();
+    const updates  = getUpdates();
+    const tbody = document.getElementById('projectTableBody');
+    const isAdmin = canAddProject(session);
+    tbody.innerHTML = '';
+
+    if (!projects.length) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:52px;">No projects yet.</td></tr>`;
+      return;
+    }
+
+    // Update thead to match admin status
+    const thead = document.querySelector('.data-table thead tr');
+    thead.innerHTML = `<th>Project Name</th><th>Lead</th><th>Department(s)</th><th>Priority</th><th>PMO</th><th>Start</th><th>End</th><th>Completion</th>${isAdmin ? '<th>Actions</th>' : ''}`;
+
+    projects.forEach(p => {
+      const id = p._id || p.id;
+      const upd = updates[id] || {};
+      const pct = computeAvg(upd.coe || {});
+      const dept = p.departments?.length ? p.departments.join(', ') : '—';
+
+      const prioBg  = p.priority==='High'?'#fee2e2':p.priority==='Medium'?'#fef3c7':p.priority==='Low'?'#dcfce7':'#f1f5f9';
+      const prioClr = p.priority==='High'?'#b91c1c':p.priority==='Medium'?'#92400e':p.priority==='Low'?'#15803d':'#64748b';
+      const prioBadge = p.priority
+        ? `<span style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${prioBg};color:${prioClr};">${p.priority}</span>`
+        : '—';
+      const pmoBadge = p.pmo==='Yes' ? `<span class="pmo-badge">PMO</span>` : (p.pmo||'—');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.name}</td>
+        <td>${p.lead}</td>
+        <td style="font-size:12px;">${dept}</td>
+        <td>${prioBadge}</td>
+        <td>${pmoBadge}</td>
+        <td>${p.start}</td>
+        <td>${p.end}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:80px;height:7px;background:var(--border);border-radius:6px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${pct===100?'#16a34a':pct<30?'#ef4444':'#3b82f6'};border-radius:6px;"></div>
+            </div>
+            <span style="font-weight:700;font-size:12px;color:var(--navy);">${pct}%</span>
+          </div>
+        </td>
+        ${isAdmin ? `<td><button class="btn-del" onclick="openDelModal('${id}','${p.name}')">🗑 Delete</button></td>` : ''}
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openAddModal() { resetDeptSelector(); document.getElementById('addModalOverlay').classList.add('open'); }
+  function closeAddModal() {
+    document.getElementById('addModalOverlay').classList.remove('open');
+    ['m_name'].forEach(id=>document.getElementById(id).value='');
+    ['m_lead','m_priority','m_pmo'].forEach(id=>document.getElementById(id).value='');
+    resetPicker('m_start'); resetPicker('m_end'); resetDeptSelector();
+  }
+
+  async function addProjectFromRegistry() {
+    const name     = document.getElementById('m_name').value.trim();
+    const lead     = document.getElementById('m_lead').value.trim();
+    const priority = document.getElementById('m_priority').value;
+    const pmo      = document.getElementById('m_pmo').value;
+    const start    = document.getElementById('m_start').value.trim();
+    const end      = document.getElementById('m_end').value.trim();
+    const depts    = getSelectedDepts();
+    if (!name||!lead||!start||!end) { showToast('Please fill all required fields','error'); return; }
+    if (_currentDeptCount<DEPT_OPTIONS.length&&depts.length<_currentDeptCount) { showToast('Please select all department(s)','error'); return; }
+    try {
+      const res = await fetch(`${API_BASE}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, lead, priority:priority||'Medium', pmo:pmo||'No', start, end, departments:depts })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error||'Failed to add project');
+      closeAddModal();
+      showToast(`Project "${name}" added!`, 'success');
+      renderTable();
+    } catch(err) {
+      showToast(err.message||'Error adding project','error');
+    }
+  }
+
+  function tryOpenAddModal() {
+    if (!canAddProject(session)) { showToast('You do not have permission to add projects.','error'); return; }
+    openAddModal();
+  }
+
+  function openDelModal(id, name) {
+    pendingDeleteId = id;
+    document.getElementById('delProjectName').textContent = `${name} (${id})`;
+    document.getElementById('delModalOverlay').classList.add('open');
+  }
+  function closeDelModal() { pendingDeleteId=null; document.getElementById('delModalOverlay').classList.remove('open'); }
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    try {
+      const res = await fetch(`${API_BASE}/projects/${pendingDeleteId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error||'Delete failed');
+      // Also remove local update
+      const upds = getUpdates();
+      delete upds[pendingDeleteId];
+      saveUpdates(upds);
+      closeDelModal();
+      showToast('Project deleted successfully','success');
+      renderTable();
+    } catch(err) {
+      showToast('Error deleting project','error');
+    }
+  }
+
+  function initPermissionUI() {
+    if (canAddProject(session)) {
+      document.getElementById('addProjectBtn').style.display='inline-flex';
+      document.getElementById('addProjectLocked').style.display='none';
+    } else {
+      document.getElementById('addProjectBtn').style.display='none';
+      document.getElementById('addProjectLocked').style.display='inline-flex';
+    }
+  }
+
+  initPickerOutsideClose(); renderDeptSelects(1); initPermissionUI(); renderTable();
+</script>
+</body>
+</html>

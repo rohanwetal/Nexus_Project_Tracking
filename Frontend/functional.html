@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Functional Update</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="header" id="siteHeader"></header>
+<div class="page-body">
+  <div class="page-container">
+    <div class="page-header-bar">
+      <div>
+        <div class="page-title">Functional Update</div>
+        <div class="page-subtitle">Update CoE completion % and critical watchlist notes for this project.</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-cancel" onclick="goHome()">← Back to Home</button>
+        
+      </div>
+    </div>
+
+    <div id="projectsContainer"><p style="color:var(--muted);padding:48px;text-align:center;">Loading…</p></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="shared.js"></script>
+<script>
+  const session = requireAuth();
+  buildHeader(session);
+
+  // Must have a project selected — if not, redirect home
+  const focusProjectId = sessionStorage.getItem('funcProjectId');
+  if (!focusProjectId) {
+    showToast('No project selected. Redirecting home…', 'error');
+    setTimeout(() => window.location.href = 'home.html', 1200);
+  }
+
+  async function renderProject() {
+    if (!focusProjectId) return;
+
+    const container = document.getElementById('projectsContainer');
+
+    // Fetch the specific project from API
+    let p;
+    try {
+      const res = await fetch(`${API_BASE}/projects/${focusProjectId}`);
+      if (!res.ok) throw new Error('Project not found');
+      p = await res.json();
+    } catch(err) {
+      container.innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted);">Project not found. <a href="home.html" style="color:var(--blue);font-weight:600;">← Home</a></div>`;
+      return;
+    }
+
+    const id = p._id || p.id;
+    let upd = {};
+
+try {
+  const res = await fetch(`${API_BASE}/updates/${id}`);
+  upd = await res.json();
+} catch (err) {
+  console.error(err);
+}
+    const coeData = upd.coe || {};
+    const avg = computeAvg(coeData);
+
+    // Only show departments that were selected for this project
+    const projectDepts = Array.isArray(p.departments) && p.departments.length
+      ? p.departments
+      : DEPT_OPTIONS; // fallback: show all if none stored
+
+    const filteredCOE = COE_LIST.filter(c =>
+      projectDepts.some(d => d.toLowerCase() === c.label.toLowerCase())
+    );
+
+    const coeRowsHtml = filteredCOE.map(c => {
+      const val   = parseInt(coeData[c.key]) || 0;
+      const watch = (upd.coeNotes && upd.coeNotes[c.key]) || '';
+      return `<div class="coe-row" id="coerow-${id}-${c.key}">
+        <div class="coe-name"><span class="coe-dot" style="background:${c.color}"></span>${c.label}</div>
+        <input class="coe-input" type="number" min="0" max="100" id="coe-${id}-${c.key}" value="${val}" placeholder="0" oninput="onCoeInput('${id}','${c.key}')">
+        <div class="coe-bar-bg"><div class="coe-bar-fill" id="coebar-${id}-${c.key}" style="width:${val}%;background:${c.color}"></div></div>
+        <span class="coe-pct-lbl" id="coelbl-${id}-${c.key}">${val}%</span>
+        <input class="coe-watch-input" type="text" id="coewatch-${id}-${c.key}" value="${watch}" placeholder="🚨 Critical watchlist note…">
+        <button class="coe-save-btn" onclick="saveCoeRow('${id}','${c.key}')">Save</button>
+      </div>`;
+    }).join('');
+
+    const block = document.createElement('div');
+    block.className = 'proj-block';
+    block.id = 'block-' + id;
+    block.innerHTML = `
+      <div class="proj-block-header">
+        <span class="proj-block-id">${id}</span>
+        <div class="proj-block-info">
+          <div class="proj-block-name">${p.name}</div>
+          <div class="proj-block-meta">
+            <span>Lead: <strong>${p.lead}</strong></span>
+            <span>Dept: <strong>${Array.isArray(p.departments)&&p.departments.length?p.departments.join(', '):(p.coe||'—')}</strong></span>
+            <span>${p.start} – ${p.end}</span>
+            ${p.priority?`<span>Priority: <strong>${p.priority}</strong></span>`:''}
+            ${p.pmo==='Yes'?`<span style="color:#6d28d9;font-weight:700;">PMO ✓</span>`:''}
+          </div>
+        </div>
+        <div class="proj-overall-wrap">
+          <span class="proj-overall-label">Overall</span>
+          <div class="proj-overall-bar"><div class="proj-overall-fill" id="ovbar-${id}" style="width:${avg}%"></div></div>
+          <span class="proj-overall-pct" id="ovpct-${id}">${avg}%</span>
+        </div>
+      </div>
+      <div class="coe-rows">
+        <div class="coe-row" style="padding:8px 0 6px;border-bottom:2px solid var(--border);">
+          <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;">Department</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center;">%</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Progress</span>
+          <span></span>
+          <span style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;">🚨 Critical Watchlist</span>
+          <span></span>
+        </div>
+        ${coeRowsHtml}
+      </div>
+      <div class="proj-block-footer">
+        <span class="watch-tip">💡 Watchlist notes appear on hover in Home dashboard</span>
+        <span class="saved-indicator" id="saved-${id}">✓ Saved</span>
+        <button class="view-home-btn" id="viewhome-${id}" onclick="goHome()">View on Home →</button>
+        <button class="save-all-btn" onclick="saveAll('${id}')">💾 Save All</button>
+      </div>`;
+
+    container.innerHTML = '';
+    container.appendChild(block);
+  }
+
+  function onCoeInput(pid, coeKey) {
+    const val = Math.min(100, Math.max(0, parseInt(document.getElementById(`coe-${pid}-${coeKey}`).value) || 0));
+    document.getElementById(`coebar-${pid}-${coeKey}`).style.width = val+'%';
+    document.getElementById(`coelbl-${pid}-${coeKey}`).textContent = val+'%';
+    recomputeOverall(pid);
+  }
+  function recomputeOverall(pid) {
+    const vals = COE_LIST.map(c => {
+      const el = document.getElementById(`coe-${pid}-${c.key}`);
+      return el ? Math.min(100, Math.max(0, parseInt(el.value)||0)) : null;
+    }).filter(v => v !== null && v > 0);
+    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+    document.getElementById(`ovbar-${pid}`).style.width = avg+'%';
+    document.getElementById(`ovpct-${pid}`).textContent = avg+'%';
+  }
+
+  async function saveCoeRow(pid, coeKey) {
+  const val   = Math.min(100, Math.max(0,
+    parseInt(document.getElementById(`coe-${pid}-${coeKey}`).value) || 0
+  ));
+  const watch = document.getElementById(`coewatch-${pid}-${coeKey}`).value.trim();
+
+  try {
+    // First get existing data
+    const resGet = await fetch(`${API_BASE}/updates/${pid}`);
+    const existing = await resGet.json();
+
+    const coe = existing.coe || {};
+    const coeNotes = existing.coeNotes || {};
+
+    coe[coeKey] = val;
+    coeNotes[coeKey] = watch;
+
+    // Save updated data
+    const res = await fetch(`${API_BASE}/updates/${pid}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coe, coeNotes })
+    });
+
+    if (!res.ok) throw new Error('Save failed');
+
+    showToast(`${COE_LIST.find(c=>c.key===coeKey).label} saved`, 'success');
+    // 🔥 SYNC BACKEND → LOCAL STORAGE
+const allUpdates = await fetch(`${API_BASE}/updates`);
+const data = await allUpdates.json();
+
+const obj = {};
+data.forEach(u => {
+  obj[u.projectId] = u;
+});
+
+saveUpdates(obj);
+
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+  async function saveAll(pid) {
+  const coe = {};
+  const coeNotes = {};
+
+  // Only iterate over COE rows that are actually rendered in the DOM
+  COE_LIST.forEach(c => {
+    const valEl   = document.getElementById(`coe-${pid}-${c.key}`);
+    const noteEl  = document.getElementById(`coewatch-${pid}-${c.key}`);
+    if (valEl) {
+      coe[c.key] = Math.min(100, Math.max(0, parseInt(valEl.value) || 0));
+      coeNotes[c.key] = noteEl?.value.trim() || '';
+    }
+  });
+
+  try {
+    // Merge with existing data so non-rendered departments aren't wiped
+    const resGet = await fetch(`${API_BASE}/updates/${pid}`);
+    const existing = await resGet.json();
+    const mergedCoe = { ...(existing.coe || {}), ...coe };
+    const mergedNotes = { ...(existing.coeNotes || {}), ...coeNotes };
+
+    const res = await fetch(`${API_BASE}/updates/${pid}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coe: mergedCoe, coeNotes: mergedNotes })
+    });
+
+    if (!res.ok) throw new Error('Save failed');
+
+    showToast('Saved to database!', 'success');
+    setTimeout(() => {
+  window.location.href = 'home.html';
+}, 800);
+    // 🔥 SYNC BACKEND → LOCAL STORAGE
+const allUpdates = await fetch(`${API_BASE}/updates`);
+const data = await allUpdates.json();
+
+const obj = {};
+data.forEach(u => {
+  obj[u.projectId] = u;
+});
+
+saveUpdates(obj);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+  function goHome() {
+    // Store the project's year so home auto-selects it
+    function goHome() {
+  const blockEl = document.querySelector('.proj-block');
+  if (blockEl) {
+    const meta = blockEl.querySelector('.proj-block-meta');
+    if (meta) {
+      const text = meta.textContent;
+      const m = text.match(/\b(20\d{2})\b/);
+      if (m) sessionStorage.setItem('homeSelectedYear', m[1]);
+    }
+  }
+  window.location.href = 'home.html';
+}
+    // Try to get start year from the project in API (stored in DOM)
+    const blockEl = document.querySelector('.proj-block');
+    if (blockEl) {
+      const meta = blockEl.querySelector('.proj-block-meta');
+      if (meta) {
+        const text = meta.textContent;
+        const m = text.match(/\b(20\d{2})\b/);
+        if (m) sessionStorage.setItem('homeSelectedYear', m[1]);
+      }
+    }
+    window.location.href = 'home.html';
+  }
+
+  renderProject();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- This is for update progress -->

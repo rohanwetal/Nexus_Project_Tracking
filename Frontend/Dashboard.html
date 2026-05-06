@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Analytics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    .canvas-wrap { position: relative; }
+    .canvas-wrap canvas { display: block; width: 100% !important; }
+    .kpi-mini-details {
+      display: block; margin-top: 6px; font-size: 10px; font-weight: 700;
+      color: var(--blue); text-decoration: none; opacity: .8; transition: opacity .15s;
+    }
+    .kpi-mini-details:hover { opacity: 1; text-decoration: underline; }
+    .loading-shimmer {
+      background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+      border-radius: 8px; height: 40px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body>
+<header class="header" id="siteHeader"></header>
+<div class="page-body">
+  <div class="page-container">
+
+    <div class="page-header-bar">
+      <div class="page-title" style="display:flex;align-items:center;gap:8px;">
+        <svg width="22" height="22" viewBox="0 0 64 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2"  y="38" width="10" height="20" rx="2" fill="#ff6b6b"/>
+          <rect x="16" y="28" width="10" height="30" rx="2" fill="#ffa94d"/>
+          <rect x="30" y="16" width="10" height="42" rx="2" fill="#ffd43b"/>
+          <rect x="44" y="22" width="10" height="36" rx="2" fill="#51cf66"/>
+          <rect x="52" y="4"  width="10" height="54" rx="2" fill="#4dabf7"/>
+          <circle cx="7"  cy="33" r="4" fill="#ff6b6b"/>
+          <circle cx="21" cy="23" r="4" fill="#ffa94d"/>
+          <circle cx="35" cy="11" r="4" fill="#ffd43b"/>
+          <circle cx="49" cy="17" r="4" fill="#51cf66"/>
+          <circle cx="57" cy="0"  r="4" fill="#4dabf7"/>
+        </svg>
+        Analytics Dashboard
+      </div>
+      <div class="header-actions">
+        <a href="home.html" style="text-decoration:none;">
+          <button class="btn-cancel btn-home">
+            <svg width="16" height="16" viewBox="0 0 64 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 18 C4 15 6 13 9 13 L22 13 L28 6 L55 6 C58 6 60 8 60 11 V48 C60 51 58 53 55 53 H9 C6 53 4 51 4 48 Z" fill="#fcc419"/>
+              <rect x="4" y="18" width="56" height="35" rx="4" fill="#ffd43b"/>
+              <rect x="4" y="14" width="30" height="8" rx="3" fill="#fcc419"/>
+              <polygon points="32,24 18,36 46,36" fill="#3d405b"/>
+              <rect x="20" y="36" width="24" height="16" rx="1" fill="#e9ecef"/>
+              <rect x="28" y="38" width="7" height="4" rx="1" fill="#845ef7"/>
+              <rect x="30" y="42" width="8" height="10" rx="1" fill="#7b4f2e"/>
+              <rect x="22" y="38" width="5" height="5" rx="1" fill="#3d405b"/>
+            </svg>
+            Home
+          </button>
+        </a>
+      </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip" id="kpiStrip" style="margin-bottom:36px;">
+      <div class="loading-shimmer" style="flex:1;"></div>
+      <div class="loading-shimmer" style="flex:1;"></div>
+      <div class="loading-shimmer" style="flex:1;"></div>
+      <div class="loading-shimmer" style="flex:1;"></div>
+      <div class="loading-shimmer" style="flex:1;"></div>
+    </div>
+
+    <!-- Department Breakdown -->
+    <div class="sec-head">
+      <div class="sec-head-icon" style="background:#f0fdf4;">🏢</div>
+      <div class="sec-head-text">
+        <h2>Department Breakdown</h2>
+        <p>Workload and performance split by Centre of Excellence</p>
+      </div>
+      <div class="sec-divider"></div>
+    </div>
+    <div style="margin-bottom:32px;">
+      <div class="chart-card accent-green">
+        <div class="chart-hdr">
+          <div>
+            <div class="chart-title">Projects by Department</div>
+            <div class="chart-sub">How many projects belong to each CoE?</div>
+          </div>
+        </div>
+        <div class="canvas-wrap"><canvas id="chartDeptCount" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Delayed Projects -->
+    <div class="sec-head">
+      <div class="sec-head-icon" style="background:#fff1f2;">⚠️</div>
+      <div class="sec-head-text"><h2>Delayed Projects</h2></div>
+      <div class="sec-divider"></div>
+    </div>
+    <div class="grid-1">
+      <div class="chart-card accent-red">
+        <div class="chart-hdr">
+          <div>
+            <div class="chart-title">Overdue / Delayed Projects</div>
+            <div class="chart-sub">End date has passed · Not yet 100% complete · Sorted by completion % ascending</div>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="delayedWrap"><canvas id="chartDelayed"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Health Table -->
+    <div class="chart-card accent-purple" style="padding:0;overflow:hidden;margin-top:32px;">
+      <div class="health-wrap">
+        <table class="health-table">
+          <thead>
+            <tr>
+              <th>Project Name</th>
+              <th>Department(s)</th>
+              <th>Lead</th>
+              <th>Priority</th>
+              <th>Completion</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody id="healthBody">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="shared.js"></script>
+<script>
+  const session = requireAuth();
+  buildHeader(session);
+
+  Chart.defaults.font.family = "'Arial', sans-serif";
+  Chart.defaults.color = '#5a6a85';
+  Chart.defaults.plugins.legend.display = false;
+  const GRID = { color: '#f0f4f8', drawBorder: false };
+  const TICK = { font: { size: 11 }, color: '#94a3b8' };
+
+  async function initDashboard() {
+    // ── All data comes from backend KPI endpoints ─────────────────
+    const [summary, deptStats, delayedList, healthRows] = await Promise.all([
+      fetchKPISummary(),
+      fetchDeptStats(),
+      fetchDelayedProjects(10),
+      fetchHealthTable(),
+    ]);
+
+    // ── KPI Strip ─────────────────────────────────────────────────
+    document.getElementById('kpiStrip').innerHTML = [
+      { cls: 'total',     num: summary.total,     lbl: 'Total Projects', tab: 'ongoing'   },
+      { cls: 'ongoing',   num: summary.ongoing,   lbl: 'Ongoing',        tab: 'ongoing'   },
+      { cls: 'completed', num: summary.completed, lbl: 'Completed',      tab: 'completed' },
+      { cls: 'delayed',   num: summary.delayed,   lbl: 'Delayed',        tab: 'delayed'   },
+      { cls: 'noprog',    num: summary.noprog,    lbl: 'No Progress',    tab: 'noprog'    },
+    ].map(k => `
+      <div class="kpi-mini ${k.cls}" style="cursor:default;">
+        <div class="kpi-mini-num">${k.num}</div>
+        <div class="kpi-mini-label">${k.lbl}</div>
+        <a href="Details.html" class="kpi-mini-details"
+           onclick="sessionStorage.setItem('detailsFocusTab','${k.tab}')">Details →</a>
+      </div>`).join('');
+
+    // ── Dept Bar Chart (data from /api/kpi/departments) ──────────
+    new Chart(document.getElementById('chartDeptCount'), {
+      type: 'bar',
+      data: {
+        labels:   deptStats.map(d => d.short),
+        datasets: [{
+          label:           'Projects',
+          data:            deptStats.map(d => d.count),
+          backgroundColor: COE_LIST.map(c => c.color + 'cc'),
+          borderColor:     COE_LIST.map(c => c.color),
+          borderWidth:     2,
+          borderRadius:    10,
+          borderSkipped:   false,
+        }]
+      },
+      options: {
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title: items => deptStats[items[0].dataIndex]?.label || '',
+              label: ctx   => ` ${ctx.parsed.y} project${ctx.parsed.y !== 1 ? 's' : ''}`
+                           + ` · avg ${deptStats[ctx.dataIndex]?.avgPct ?? 0}% complete`,
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { ...TICK, stepSize: 1 }, grid: GRID },
+          x: { ticks: TICK, grid: { display: false } }
+        }
+      }
+    });
+
+    // ── Delayed bar chart (data from /api/kpi/delayed) ───────────
+    if (!delayedList.length) {
+      document.getElementById('delayedWrap').innerHTML =
+        `<div class="empty-chart"><span class="icon">🎉</span><p>No overdue projects — great work!</p></div>`;
+    } else {
+      document.getElementById('chartDelayed').style.height =
+        Math.max(220, delayedList.length * 38) + 'px';
+      new Chart(document.getElementById('chartDelayed'), {
+        type: 'bar',
+        data: {
+          labels:   delayedList.map(p => p.name.length > 28 ? p.name.slice(0, 28) + '…' : p.name),
+          datasets: [{
+            label:           'Completion %',
+            data:            delayedList.map(p => p.pct),
+            backgroundColor: delayedList.map(p =>
+              p.pct === 0 ? '#94a3b8' : p.pct < 30 ? '#ef4444' : p.pct < 60 ? '#f97316' : '#3b82f6'
+            ),
+            borderRadius:  6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.x}% complete — overdue since end date`
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true, max: 100, ticks: { ...TICK, callback: v => v + '%' }, grid: GRID },
+            y: { ticks: { ...TICK, font: { size: 12 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // ── Health Table (data from /api/kpi/health-table) ───────────
+    const tbody = document.getElementById('healthBody');
+    if (!healthRows.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:48px;">
+        No projects yet. <a href="projects.html" style="color:var(--blue);font-weight:600;">Add one →</a>
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    healthRows.forEach(p => {
+      const bc = p.status === 'completed' ? '#16a34a'
+               : p.status === 'delayed'   ? '#ef4444'
+               : p.status === 'noprog'    ? '#94a3b8'
+               :                            '#3b82f6';
+
+      const prioBg  = p.priority === 'High'   ? '#fee2e2'
+                    : p.priority === 'Medium' ? '#fef3c7'
+                    : p.priority === 'Low'    ? '#dcfce7' : '#f1f5f9';
+      const prioClr = p.priority === 'High'   ? '#b91c1c'
+                    : p.priority === 'Medium' ? '#92400e'
+                    : p.priority === 'Low'    ? '#15803d' : '#64748b';
+      const pb = p.priority
+        ? `<span style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${prioBg};color:${prioClr};">${p.priority}</span>`
+        : '—';
+
+      const flags = [
+        p.status === 'delayed'  ? `<span class="flag f-delay">⚠ Delayed</span>` : '',
+        p.hasWatch              ? `<span class="flag f-watch">🚨 Watch</span>`   : '',
+        p.status === 'completed'? `<span class="flag f-done">✓ Done</span>`      : '',
+        p.pmo    === 'Yes'      ? `<span class="flag f-pmo">PMO</span>`           : '',
+      ].join('');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${p.name}">${p.name}</td>
+        <td style="font-size:12px;color:var(--muted);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${(p.departments || []).join(', ') || '—'}</td>
+        <td>${p.lead}</td>
+        <td>${pb}</td>
+        <td>
+          <div class="ht-bar">
+            <div class="ht-bar-bg"><div class="ht-bar-fill" style="width:${p.pct}%;background:${bc}"></div></div>
+            <span class="ht-pct">${p.pct}%</span>
+          </div>
+        </td>
+        <td>${flags || '—'}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  initDashboard();
+</script>
+</body>
+</html>
